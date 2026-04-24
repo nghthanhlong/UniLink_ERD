@@ -1,0 +1,204 @@
+
+<h2 class="sr-only">Updated ER diagram — reactions now belong only to questions and answers</h2>
+<style>
+#erd svg { width: 100%; height: auto; }
+#erd svg.erDiagram .divider path { stroke-opacity: 0.4; }
+#erd svg.erDiagram .row-rect-odd path,
+#erd svg.erDiagram .row-rect-odd rect,
+#erd svg.erDiagram .row-rect-even path,
+#erd svg.erDiagram .row-rect-even rect { stroke: none !important; }
+</style>
+<div id="erd" style="padding: 0.5rem 0;"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+    primaryColor: dark ? '#2a2a28' : '#f1efe8',
+    primaryBorderColor: dark ? '#5f5e5a' : '#b4b2a9',
+    primaryTextColor: dark ? '#c2c0b6' : '#3d3d3a',
+    attributeBackgroundColorEven: dark ? '#222220' : '#fafaf7',
+    attributeBackgroundColorOdd: dark ? '#1a1a18' : '#f1efe8',
+  },
+});
+
+const diagram = `erDiagram
+  universities {
+    uuid id PK
+    string name
+    string domain
+  }
+  users {
+    uuid id PK
+    uuid uni_id FK
+    string name
+    string email
+    string role
+    timestamp created_at
+  }
+  rooms {
+    uuid id PK
+    uuid uni_id FK
+    string name
+    string description
+    timestamp created_at
+  }
+  room_messages {
+    uuid id PK
+    uuid room_id FK
+    uuid sender_id FK
+    text content
+    string media_url
+    uuid reply_to_id FK
+    bool is_deleted
+    timestamp created_at
+  }
+  confessions {
+    uuid id PK
+    uuid uni_id FK
+    uuid author_id FK
+    text content
+    bool is_anonymous
+    bool is_removed
+    timestamp created_at
+  }
+  confession_comments {
+    uuid id PK
+    uuid confession_id FK
+    uuid author_id FK
+    text content
+    bool is_anonymous
+    timestamp created_at
+  }
+  questions {
+    uuid id PK
+    uuid uni_id FK
+    uuid author_id FK
+    string title
+    text body
+    string tags
+    bool is_resolved
+    timestamp created_at
+  }
+  question_votes {
+    uuid id PK
+    uuid question_id FK
+    uuid user_id FK
+    int value
+    timestamp created_at
+  }
+  answers {
+    uuid id PK
+    uuid question_id FK
+    uuid author_id FK
+    text content
+    bool is_best_answer
+    timestamp created_at
+  }
+  answer_votes {
+    uuid id PK
+    uuid answer_id FK
+    uuid user_id FK
+    int value
+    timestamp created_at
+  }
+  study_rooms {
+    uuid id PK
+    uuid uni_id FK
+    string name
+    string subject
+    int max_members
+    uuid created_by FK
+    string status
+    timestamp created_at
+  }
+  study_room_members {
+    uuid id PK
+    uuid study_room_id FK
+    uuid user_id FK
+    timestamp joined_at
+  }
+  study_room_messages {
+    uuid id PK
+    uuid study_room_id FK
+    uuid sender_id FK
+    text content
+    string media_url
+    timestamp created_at
+  }
+  study_room_notes {
+    uuid id PK
+    uuid study_room_id FK
+    text content
+    uuid last_edited_by FK
+    timestamp updated_at
+  }
+
+  universities ||--o{ users : "has"
+  universities ||--o{ rooms : "has"
+  universities ||--o{ confessions : "has"
+  universities ||--o{ questions : "has"
+  universities ||--o{ study_rooms : "has"
+
+  users ||--o{ room_messages : "sends"
+  users ||--o{ confessions : "authors"
+  users ||--o{ confession_comments : "writes"
+  users ||--o{ questions : "asks"
+  users ||--o{ answers : "writes"
+  users ||--o{ question_votes : "casts"
+  users ||--o{ answer_votes : "casts"
+  users ||--o{ study_room_members : "joins"
+  users ||--o{ study_room_messages : "sends"
+  users ||--o{ study_room_notes : "edits"
+  users ||--o{ study_rooms : "creates"
+
+  rooms ||--o{ room_messages : "contains"
+  room_messages }o--o| room_messages : "replies to"
+
+  confessions ||--o{ confession_comments : "has"
+
+  questions ||--o{ answers : "receives"
+  questions ||--o{ question_votes : "receives"
+  answers ||--o{ answer_votes : "receives"
+
+  study_rooms ||--o{ study_room_members : "has"
+  study_rooms ||--o{ study_room_messages : "contains"
+  study_rooms ||--o| study_room_notes : "has"
+`;
+
+const { svg } = await mermaid.render('erd-svg', diagram);
+document.getElementById('erd').innerHTML = svg;
+
+document.querySelectorAll('#erd svg.erDiagram .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+
+document.querySelectorAll('#erd svg.erDiagram .row-rect-odd path, #erd svg.erDiagram .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>
